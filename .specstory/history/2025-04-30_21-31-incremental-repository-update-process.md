@@ -247,3 +247,64 @@ git merge v0.51.0
 
 ---
 
+_**User**_
+
+i want to add all the changes and then commit but not in main, please
+
+---
+
+_**Assistant**_
+
+
+
+---
+
+Okay, I understand. You want to make sure all the changes you made to resolve the conflicts are included in the commit, and you want to ensure this commit happens on the `update-to-v0.52.0` branch, **not** on `main`.
+
+You are currently on the correct branch (`update-to-v0.52.0`), so any commit you make now will be on this branch.
+
+To add all the changes (the resolved files) and then commit them, run these commands:
+
+1.  **Stage all changes:** This command adds all modified and new files in your working directory to the staging area.
+    ```bash
+    git add .
+    ```
+    *(Alternatively, `git add -A` works too)*
+
+2.  **Commit the staged changes:** This commits the staged changes specifically to the `update-to-v0.52.0` branch, completing the merge of `v0.50.0`.
+    ```bash
+    git commit -m "Merge tag 'v0.50.0' from upstream"
+    ```
+
+After these two commands, the merge of `v0.50.0` will be finalized on your `update-to-v0.52.0` branch. You can then proceed with the next step: merging `v0.51.0`.
+
+---
+
+_**User**_
+
+okay, let's merge to 0.51.0 now
+
+---
+
+_**Assistant**_
+
+
+
+---
+
+Alright, the `v0.50.0` merge is committed. Now, let's merge `v0.51.0`.
+
+Run the following command:
+
+```bash
+git merge v0.51.0
+```
+
+Again, watch the output carefully for any merge conflicts.
+*   If conflicts occur (`Automatic merge failed...`), use `git status` to find the conflicted files, resolve the conflicts in your editor, use `git add <filename>` for each resolved file, and finally commit the merge resolution with `git commit -m "Merge tag 'v0.51.0' from upstream"`.
+*   If the merge completes without conflicts, Git might open an editor for the commit message. If so, save and close it.
+
+Let me know the outcome.
+
+---
+

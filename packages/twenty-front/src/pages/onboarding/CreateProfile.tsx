@@ -4,7 +4,6 @@ import { useCallback, useState } from 'react';
 import { Controller, SubmitHandler, useForm } from 'react-hook-form';
 import { useRecoilState } from 'recoil';
 import { Key } from 'ts-key-enum';
-import { H2Title, MainButton } from 'twenty-ui';
 import { z } from 'zod';
 
 import { SubTitle } from '@/auth/components/SubTitle';
@@ -12,7 +11,6 @@ import { Title } from '@/auth/components/Title';
 import { currentWorkspaceMemberState } from '@/auth/states/currentWorkspaceMemberState';
 import { CoreObjectNameSingular } from '@/object-metadata/types/CoreObjectNameSingular';
 import { useUpdateOneRecord } from '@/object-record/hooks/useUpdateOneRecord';
-import { useOnboardingStatus } from '@/onboarding/hooks/useOnboardingStatus';
 import { useSetNextOnboardingStatus } from '@/onboarding/hooks/useSetNextOnboardingStatus';
 import { ProfilePictureUploader } from '@/settings/profile/components/ProfilePictureUploader';
 import { PageHotkeyScope } from '@/types/PageHotkeyScope';
@@ -22,8 +20,9 @@ import { TextInputV2 } from '@/ui/input/components/TextInputV2';
 import { useScopedHotkeys } from '@/ui/utilities/hotkey/hooks/useScopedHotkeys';
 import { WorkspaceMember } from '@/workspace-member/types/WorkspaceMember';
 import { Trans, useLingui } from '@lingui/react/macro';
-import { OnboardingStatus } from '~/generated/graphql';
 import { isDefined } from 'twenty-shared/utils';
+import { H2Title } from 'twenty-ui/display';
+import { MainButton } from 'twenty-ui/input';
 
 const StyledContentContainer = styled.div`
   width: 100%;
@@ -57,7 +56,6 @@ type Form = z.infer<typeof validationSchema>;
 
 export const CreateProfile = () => {
   const { t } = useLingui();
-  const onboardingStatus = useOnboardingStatus();
   const setNextOnboardingStatus = useSetNextOnboardingStatus();
   const { enqueueSnackBar } = useSnackBar();
   const [currentWorkspaceMember, setCurrentWorkspaceMember] = useRecoilState(
@@ -143,10 +141,6 @@ export const CreateProfile = () => {
     },
     PageHotkeyScope.CreateProfile,
   );
-
-  if (onboardingStatus !== OnboardingStatus.PROFILE_CREATION) {
-    return null;
-  }
 
   return (
     <>
