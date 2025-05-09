@@ -5,8 +5,10 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 
 import { BillingController } from 'src/engine/core-modules/billing/billing.controller';
 import { BillingResolver } from 'src/engine/core-modules/billing/billing.resolver';
+import { BillingAddWorkflowSubscriptionItemCommand } from 'src/engine/core-modules/billing/commands/billing-add-workflow-subscription-item.command';
 import { BillingSyncCustomerDataCommand } from 'src/engine/core-modules/billing/commands/billing-sync-customer-data.command';
 import { BillingSyncPlansDataCommand } from 'src/engine/core-modules/billing/commands/billing-sync-plans-data.command';
+import { BillingUpdateSubscriptionPriceCommand } from 'src/engine/core-modules/billing/commands/billing-update-subscription-price.command';
 import { BillingCustomer } from 'src/engine/core-modules/billing/entities/billing-customer.entity';
 import { BillingEntitlement } from 'src/engine/core-modules/billing/entities/billing-entitlement.entity';
 import { BillingMeter } from 'src/engine/core-modules/billing/entities/billing-meter.entity';
@@ -26,6 +28,7 @@ import { BillingUsageService } from 'src/engine/core-modules/billing/services/bi
 import { BillingService } from 'src/engine/core-modules/billing/services/billing.service';
 import { StripeModule } from 'src/engine/core-modules/billing/stripe/stripe.module';
 import { BillingWebhookAlertService } from 'src/engine/core-modules/billing/webhooks/services/billing-webhook-alert.service';
+import { BillingWebhookCustomerService } from 'src/engine/core-modules/billing/webhooks/services/billing-webhook-customer.service';
 import { BillingWebhookEntitlementService } from 'src/engine/core-modules/billing/webhooks/services/billing-webhook-entitlement.service';
 import { BillingWebhookInvoiceService } from 'src/engine/core-modules/billing/webhooks/services/billing-webhook-invoice.service';
 import { BillingWebhookPriceService } from 'src/engine/core-modules/billing/webhooks/services/billing-webhook-price.service';
@@ -79,9 +82,12 @@ import { PermissionsModule } from 'src/engine/metadata-modules/permissions/permi
     BillingWebhookPriceService,
     BillingWebhookAlertService,
     BillingWebhookInvoiceService,
+    BillingWebhookCustomerService,
     BillingRestApiExceptionFilter,
     BillingSyncCustomerDataCommand,
+    BillingUpdateSubscriptionPriceCommand,
     BillingSyncPlansDataCommand,
+    BillingAddWorkflowSubscriptionItemCommand,
     BillingUsageService,
   ],
   exports: [

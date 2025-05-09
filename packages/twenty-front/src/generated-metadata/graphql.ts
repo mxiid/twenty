@@ -63,6 +63,11 @@ export type Analytics = {
   success: Scalars['Boolean']['output'];
 };
 
+export enum AnalyticsType {
+  PAGEVIEW = 'PAGEVIEW',
+  TRACK = 'TRACK'
+}
+
 export type ApiConfig = {
   __typename?: 'ApiConfig';
   mutationMaximumAffectedRecords: Scalars['Float']['output'];
@@ -155,7 +160,8 @@ export type BillingEndTrialPeriodOutput = {
 
 export type BillingMeteredProductUsageOutput = {
   __typename?: 'BillingMeteredProductUsageOutput';
-  includedFreeQuantity: Scalars['Float']['output'];
+  freeTierQuantity: Scalars['Float']['output'];
+  freeTrialQuantity: Scalars['Float']['output'];
   periodEnd: Scalars['DateTime']['output'];
   periodStart: Scalars['DateTime']['output'];
   productKey: BillingProductKey;
@@ -474,6 +480,10 @@ export type CreateServerlessFunctionInput = {
 };
 
 export type CreateWorkflowVersionStepInput = {
+  /** Next step ID */
+  nextStepId?: InputMaybe<Scalars['String']['input']>;
+  /** Parent step ID */
+  parentStepId?: InputMaybe<Scalars['String']['input']>;
   /** New step type */
   stepType: Scalars['String']['input'];
   /** Workflow version ID */
@@ -506,6 +516,15 @@ export type CustomDomainValidRecords = {
   id: Scalars['String']['output'];
   records: Array<CustomDomainRecord>;
 };
+
+/** Database Event Action */
+export enum DatabaseEventAction {
+  CREATED = 'CREATED',
+  DELETED = 'DELETED',
+  DESTROYED = 'DESTROYED',
+  RESTORED = 'RESTORED',
+  UPDATED = 'UPDATED'
+}
 
 export type DateFilter = {
   eq?: InputMaybe<Scalars['Date']['input']>;
@@ -598,6 +617,12 @@ export type FeatureFlag = {
   workspaceId: Scalars['String']['output'];
 };
 
+export type FeatureFlagDto = {
+  __typename?: 'FeatureFlagDTO';
+  key: FeatureFlagKey;
+  value: Scalars['Boolean']['output'];
+};
+
 export enum FeatureFlagKey {
   IsAirtableIntegrationEnabled = 'IsAirtableIntegrationEnabled',
   IsAnalyticsV2Enabled = 'IsAnalyticsV2Enabled',
@@ -606,7 +631,6 @@ export enum FeatureFlagKey {
   IsCustomDomainEnabled = 'IsCustomDomainEnabled',
   IsEventObjectEnabled = 'IsEventObjectEnabled',
   IsJsonFilterEnabled = 'IsJsonFilterEnabled',
-  IsMeteredProductBillingEnabled = 'IsMeteredProductBillingEnabled',
   IsNewRelationEnabled = 'IsNewRelationEnabled',
   IsPermissionsV2Enabled = 'IsPermissionsV2Enabled',
   IsPostgreSQLIntegrationEnabled = 'IsPostgreSQLIntegrationEnabled',
@@ -971,8 +995,9 @@ export type Mutation = {
   syncRemoteTable: RemoteTable;
   syncRemoteTableSchemaChanges: RemoteTable;
   track: Analytics;
+  trackAnalytics: Analytics;
   unsyncRemoteTable: RemoteTable;
-  updateLabPublicFeatureFlag: FeatureFlag;
+  updateLabPublicFeatureFlag: FeatureFlagDto;
   updateOneField: Field;
   updateOneObject: Object;
   updateOneRemoteServer: RemoteServer;
@@ -988,7 +1013,7 @@ export type Mutation = {
   uploadImage: Scalars['String']['output'];
   uploadProfilePicture: Scalars['String']['output'];
   uploadWorkspaceLogo: Scalars['String']['output'];
-  upsertOneObjectPermission: ObjectPermission;
+  upsertObjectPermissions: Array<ObjectPermission>;
   upsertSettingPermissions: Array<SettingPermission>;
   userLookupAdminPanel: UserLookup;
   validateApprovedAccessDomain: ApprovedAccessDomain;
@@ -1253,6 +1278,14 @@ export type MutationTrackArgs = {
 };
 
 
+export type MutationTrackAnalyticsArgs = {
+  event?: InputMaybe<Scalars['String']['input']>;
+  name?: InputMaybe<Scalars['String']['input']>;
+  properties?: InputMaybe<Scalars['JSON']['input']>;
+  type: AnalyticsType;
+};
+
+
 export type MutationUnsyncRemoteTableArgs = {
   input: RemoteTableInput;
 };
@@ -1344,8 +1377,8 @@ export type MutationUploadWorkspaceLogoArgs = {
 };
 
 
-export type MutationUpsertOneObjectPermissionArgs = {
-  upsertObjectPermissionInput: UpsertObjectPermissionInput;
+export type MutationUpsertObjectPermissionsArgs = {
+  upsertObjectPermissionsInput: UpsertObjectPermissionsInput;
 };
 
 
@@ -1457,6 +1490,14 @@ export type ObjectPermission = {
   roleId: Scalars['String']['output'];
 };
 
+export type ObjectPermissionInput = {
+  canDestroyObjectRecords?: InputMaybe<Scalars['Boolean']['input']>;
+  canReadObjectRecords?: InputMaybe<Scalars['Boolean']['input']>;
+  canSoftDeleteObjectRecords?: InputMaybe<Scalars['Boolean']['input']>;
+  canUpdateObjectRecords?: InputMaybe<Scalars['Boolean']['input']>;
+  objectMetadataId: Scalars['String']['input'];
+};
+
 export type ObjectRecordFilterInput = {
   and?: InputMaybe<Array<ObjectRecordFilterInput>>;
   createdAt?: InputMaybe<DateFilter>;
@@ -1474,6 +1515,21 @@ export type ObjectStandardOverrides = {
   labelPlural?: Maybe<Scalars['String']['output']>;
   labelSingular?: Maybe<Scalars['String']['output']>;
   translations?: Maybe<Scalars['JSON']['output']>;
+};
+
+export type OnDbEventDto = {
+  __typename?: 'OnDbEventDTO';
+  action: DatabaseEventAction;
+  eventDate: Scalars['DateTime']['output'];
+  objectNameSingular: Scalars['String']['output'];
+  record: Scalars['JSON']['output'];
+  updatedFields?: Maybe<Array<Scalars['String']['output']>>;
+};
+
+export type OnDbEventInput = {
+  action?: InputMaybe<DatabaseEventAction>;
+  objectNameSingular?: InputMaybe<Scalars['String']['input']>;
+  recordId?: InputMaybe<Scalars['String']['input']>;
 };
 
 /** Onboarding status */
@@ -1892,6 +1948,7 @@ export type Role = {
   id: Scalars['String']['output'];
   isEditable: Scalars['Boolean']['output'];
   label: Scalars['String']['output'];
+  objectPermissions?: Maybe<Array<ObjectPermission>>;
   settingPermissions?: Maybe<Array<SettingPermission>>;
   workspaceMembers: Array<WorkspaceMember>;
 };
@@ -2063,6 +2120,16 @@ export type SubmitFormStepInput = {
   stepId: Scalars['String']['input'];
   /** Workflow run ID */
   workflowRunId: Scalars['String']['input'];
+};
+
+export type Subscription = {
+  __typename?: 'Subscription';
+  onDbEvent: OnDbEventDto;
+};
+
+
+export type SubscriptionOnDbEventArgs = {
+  input: OnDbEventInput;
 };
 
 export enum SubscriptionInterval {
@@ -2296,12 +2363,8 @@ export type UpdateWorkspaceInput = {
   subdomain?: InputMaybe<Scalars['String']['input']>;
 };
 
-export type UpsertObjectPermissionInput = {
-  canDestroyObjectRecords?: InputMaybe<Scalars['Boolean']['input']>;
-  canReadObjectRecords?: InputMaybe<Scalars['Boolean']['input']>;
-  canSoftDeleteObjectRecords?: InputMaybe<Scalars['Boolean']['input']>;
-  canUpdateObjectRecords?: InputMaybe<Scalars['Boolean']['input']>;
-  objectMetadataId: Scalars['String']['input'];
+export type UpsertObjectPermissionsInput = {
+  objectPermissions: Array<ObjectPermissionInput>;
   roleId: Scalars['String']['input'];
 };
 
@@ -2462,7 +2525,7 @@ export type Workspace = {
   defaultRole?: Maybe<Role>;
   deletedAt?: Maybe<Scalars['DateTime']['output']>;
   displayName?: Maybe<Scalars['String']['output']>;
-  featureFlags?: Maybe<Array<FeatureFlag>>;
+  featureFlags?: Maybe<Array<FeatureFlagDto>>;
   hasValidEnterpriseKey: Scalars['Boolean']['output'];
   id: Scalars['UUID']['output'];
   inviteHash?: Maybe<Scalars['String']['output']>;

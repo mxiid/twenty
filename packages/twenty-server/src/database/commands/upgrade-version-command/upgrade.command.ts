@@ -17,6 +17,8 @@ import { UpdateDefaultViewRecordOpeningOnWorkflowObjectsCommand } from 'src/data
 import { InitializePermissionsCommand } from 'src/database/commands/upgrade-version-command/0-44/0-44-initialize-permissions.command';
 import { UpdateViewAggregateOperationsCommand } from 'src/database/commands/upgrade-version-command/0-44/0-44-update-view-aggregate-operations.command';
 import { UpgradeCreatedByEnumCommand } from 'src/database/commands/upgrade-version-command/0-51/0-51-update-workflow-trigger-type-enum.command';
+import { MigrateRelationsToFieldMetadataCommand } from 'src/database/commands/upgrade-version-command/0-52/0-52-migrate-relations-to-field-metadata.command';
+import { UpgradeDateAndDateTimeFieldsSettingsJsonCommand } from 'src/database/commands/upgrade-version-command/0-52/0-52-upgrade-settings-field';
 import { TwentyConfigService } from 'src/engine/core-modules/twenty-config/twenty-config.service';
 import { Workspace } from 'src/engine/core-modules/workspace/workspace.entity';
 import { TwentyORMGlobalManager } from 'src/engine/twenty-orm/twenty-orm-global.manager';
@@ -31,7 +33,7 @@ type VersionCommands = {
   description: 'Upgrade workspaces to the latest version',
 })
 export class UpgradeCommand extends UpgradeCommandRunner {
-  fromWorkspaceVersion = new SemVer('0.50.0');
+  fromWorkspaceVersion = new SemVer('0.44.0');
   private commands: VersionCommands;
 
   constructor(
@@ -54,6 +56,10 @@ export class UpgradeCommand extends UpgradeCommandRunner {
 
     // 0.51 Commands
     protected readonly upgradeCreatedByEnumCommand: UpgradeCreatedByEnumCommand,
+
+    // 0.52 Commands
+    protected readonly upgradeDateAndDateTimeFieldsSettingsJsonCommand: UpgradeDateAndDateTimeFieldsSettingsJsonCommand,
+    protected readonly migrateRelationsToFieldMetadataCommand: MigrateRelationsToFieldMetadataCommand,
   ) {
     super(
       workspaceRepository,
@@ -89,6 +95,14 @@ export class UpgradeCommand extends UpgradeCommandRunner {
 
     const commands_051: VersionCommands = {
       beforeSyncMetadata: [this.upgradeCreatedByEnumCommand],
+      afterSyncMetadata: [],
+    };
+
+    const _commands_052: VersionCommands = {
+      beforeSyncMetadata: [
+        this.upgradeDateAndDateTimeFieldsSettingsJsonCommand,
+        this.migrateRelationsToFieldMetadataCommand,
+      ],
       afterSyncMetadata: [],
     };
 

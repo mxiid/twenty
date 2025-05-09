@@ -44,3 +44,6 @@ dump.rdb
 
 .crowdin.yml
 .react-email/
+
+*.sql
+.specstory/*

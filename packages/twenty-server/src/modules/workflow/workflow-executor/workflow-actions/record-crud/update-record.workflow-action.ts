@@ -1,19 +1,20 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 
-import { Repository } from 'typeorm';
 import deepEqual from 'deep-equal';
+import { Repository } from 'typeorm';
 
 import { WorkflowExecutor } from 'src/modules/workflow/workflow-executor/interfaces/workflow-executor.interface';
 
 import { DatabaseEventAction } from 'src/engine/api/graphql/graphql-query-runner/enums/database-event-action';
+import { objectRecordChangedValues } from 'src/engine/core-modules/event-emitter/utils/object-record-changed-values';
+import { RecordInputTransformerService } from 'src/engine/core-modules/record-transformer/services/record-input-transformer.service';
 import { ObjectMetadataEntity } from 'src/engine/metadata-modules/object-metadata/object-metadata.entity';
-import { getObjectMetadataMapItemByNameSingular } from 'src/engine/metadata-modules/utils/get-object-metadata-map-item-by-name-singular.util';
 import { ScopedWorkspaceContextFactory } from 'src/engine/twenty-orm/factories/scoped-workspace-context.factory';
 import { TwentyORMManager } from 'src/engine/twenty-orm/twenty-orm.manager';
 import { formatData } from 'src/engine/twenty-orm/utils/format-data.util';
-import { WorkspaceCacheStorageService } from 'src/engine/workspace-cache-storage/workspace-cache-storage.service';
 import { WorkspaceEventEmitter } from 'src/engine/workspace-event-emitter/workspace-event-emitter';
+import { WorkflowCommonWorkspaceService } from 'src/modules/workflow/common/workspace-services/workflow-common.workspace-service';
 import {
   WorkflowStepExecutorException,
   WorkflowStepExecutorExceptionCode,
@@ -32,11 +33,12 @@ import { WorkflowUpdateRecordActionInput } from 'src/modules/workflow/workflow-e
 export class UpdateRecordWorkflowAction implements WorkflowExecutor {
   constructor(
     private readonly twentyORMManager: TwentyORMManager,
-    private readonly workspaceCacheStorageService: WorkspaceCacheStorageService,
     private readonly scopedWorkspaceContextFactory: ScopedWorkspaceContextFactory,
     @InjectRepository(ObjectMetadataEntity, 'metadata')
     private readonly objectMetadataRepository: Repository<ObjectMetadataEntity>,
     private readonly workspaceEventEmitter: WorkspaceEventEmitter,
+    private readonly workflowCommonWorkspaceService: WorkflowCommonWorkspaceService,
+    private readonly recordInputTransformerService: RecordInputTransformerService,
   ) {}
 
   async execute({
@@ -75,6 +77,7 @@ export class UpdateRecordWorkflowAction implements WorkflowExecutor {
       where: {
         nameSingular: workflowActionInput.objectName,
       },
+      relations: ['fields'],
     });
 
     if (!objectMetadata) {
@@ -97,47 +100,17 @@ export class UpdateRecordWorkflowAction implements WorkflowExecutor {
       );
     }
 
-    const currentCacheVersion =
-      await this.workspaceCacheStorageService.getMetadataVersion(workspaceId);
-
-    if (currentCacheVersion === undefined) {
-      throw new RecordCRUDActionException(
-        'Failed to read: Metadata cache version not found',
-        RecordCRUDActionExceptionCode.INVALID_REQUEST,
-      );
-    }
-
-    const objectMetadataMaps =
-      await this.workspaceCacheStorageService.getObjectMetadataMaps(
-        workspaceId,
-        currentCacheVersion,
-      );
-
-    if (!objectMetadataMaps) {
-      throw new RecordCRUDActionException(
-        'Failed to read: Object metadata collection not found',
-        RecordCRUDActionExceptionCode.INVALID_REQUEST,
-      );
-    }
-
-    const objectMetadataItemWithFieldsMaps =
-      getObjectMetadataMapItemByNameSingular(
-        objectMetadataMaps,
-        workflowActionInput.objectName,
-      );
-
-    if (!objectMetadataItemWithFieldsMaps) {
-      throw new RecordCRUDActionException(
-        `Failed to read: Object ${workflowActionInput.objectName} not found`,
-        RecordCRUDActionExceptionCode.INVALID_REQUEST,
-      );
-    }
-
     if (workflowActionInput.fieldsToUpdate.length === 0) {
       return {
         result: previousObjectRecord,
       };
     }
+
+    const { objectMetadataItemWithFieldsMaps } =
+      await this.workflowCommonWorkspaceService.getObjectMetadataItemWithFieldsMaps(
+        workflowActionInput.objectName,
+        workspaceId,
+      );
 
     const objectRecordWithFilteredFields = Object.keys(
       workflowActionInput.objectRecord,
@@ -152,8 +125,14 @@ export class UpdateRecordWorkflowAction implements WorkflowExecutor {
       return acc;
     }, {});
 
+    const transformedObjectRecord =
+      await this.recordInputTransformerService.process({
+        recordInput: objectRecordWithFilteredFields,
+        objectMetadataMapItem: objectMetadataItemWithFieldsMaps,
+      });
+
     const objectRecordFormatted = formatData(
-      objectRecordWithFilteredFields,
+      transformedObjectRecord,
       objectMetadataItemWithFieldsMaps,
     );
 
@@ -166,6 +145,14 @@ export class UpdateRecordWorkflowAction implements WorkflowExecutor {
       await repository.update(workflowActionInput.objectRecordId, {
         ...objectRecordFormatted,
       });
+
+      const diff = objectRecordChangedValues(
+        previousObjectRecord,
+        updatedObjectRecord,
+        workflowActionInput.fieldsToUpdate,
+        objectMetadata,
+      );
+
       this.workspaceEventEmitter.emitDatabaseBatchEvent({
         objectMetadataNameSingular: workflowActionInput.objectName,
         action: DatabaseEventAction.UPDATED,
@@ -176,6 +163,8 @@ export class UpdateRecordWorkflowAction implements WorkflowExecutor {
             properties: {
               before: previousObjectRecord,
               after: updatedObjectRecord,
+              updatedFields: workflowActionInput.fieldsToUpdate,
+              diff,
             },
           },
         ],

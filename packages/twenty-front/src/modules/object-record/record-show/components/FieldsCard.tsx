@@ -8,6 +8,7 @@ import { formatFieldMetadataItemAsColumnDefinition } from '@/object-metadata/uti
 import { FieldContext } from '@/object-record/record-field/contexts/FieldContext';
 import { useIsRecordReadOnly } from '@/object-record/record-field/hooks/useIsRecordReadOnly';
 import { RecordFieldComponentInstanceContext } from '@/object-record/record-field/states/contexts/RecordFieldComponentInstanceContext';
+import { isFieldValueReadOnly } from '@/object-record/record-field/utils/isFieldValueReadOnly';
 import { RecordInlineCell } from '@/object-record/record-inline-cell/components/RecordInlineCell';
 import { PropertyBox } from '@/object-record/record-inline-cell/property-box/components/PropertyBox';
 import { PropertyBoxSkeletonLoader } from '@/object-record/record-inline-cell/property-box/components/PropertyBoxSkeletonLoader';
@@ -55,11 +56,16 @@ export const FieldsCard = ({
     );
 
   const { inlineFieldMetadataItems, relationFieldMetadataItems } = groupBy(
-    availableFieldMetadataItems.filter(
-      (fieldMetadataItem) =>
-        fieldMetadataItem.name !== 'createdAt' &&
-        fieldMetadataItem.name !== 'deletedAt',
-    ),
+    availableFieldMetadataItems
+      .filter(
+        (fieldMetadataItem) =>
+          fieldMetadataItem.name !== 'createdAt' &&
+          fieldMetadataItem.name !== 'deletedAt',
+      )
+      .filter(
+        (fieldMetadataItem) =>
+          fieldMetadataItem.type !== FieldMetadataType.RICH_TEXT_V2,
+      ),
     (fieldMetadataItem) =>
       fieldMetadataItem.type === FieldMetadataType.RELATION
         ? 'relationFieldMetadataItems'
@@ -112,7 +118,12 @@ export const FieldsCard = ({
                     }),
                     useUpdateRecord: useUpdateOneObjectRecordMutation,
                     isDisplayModeFixHeight: true,
-                    isReadOnly: isRecordReadOnly,
+                    isReadOnly: isFieldValueReadOnly({
+                      objectNameSingular,
+                      fieldName: fieldMetadataItem.name,
+                      fieldType: fieldMetadataItem.type,
+                      isRecordReadOnly,
+                    }),
                   }}
                 >
                   <ActivityTargetsInlineCell
@@ -149,7 +160,12 @@ export const FieldsCard = ({
                   }),
                   useUpdateRecord: useUpdateOneObjectRecordMutation,
                   isDisplayModeFixHeight: true,
-                  isReadOnly: isRecordReadOnly,
+                  isReadOnly: isFieldValueReadOnly({
+                    objectNameSingular,
+                    fieldName: fieldMetadataItem.name,
+                    fieldType: fieldMetadataItem.type,
+                    isRecordReadOnly,
+                  }),
                 }}
               >
                 <RecordFieldComponentInstanceContext.Provider

@@ -17,12 +17,15 @@ export class WorkflowVisualizerPage {
   readonly deactivateWorkflowButton: Locator;
   readonly addTriggerButton: Locator;
   readonly commandMenu: Locator;
+  readonly stepHeaderInCommandMenu: Locator;
   readonly workflowNameLabel: Locator;
   readonly triggerNode: Locator;
   readonly background: Locator;
   readonly useAsDraftButton: Locator;
   readonly overrideDraftButton: Locator;
   readonly discardDraftButton: Locator;
+  readonly seeRunsButton: Locator;
+  readonly goBackInCommandMenu: Locator;
 
   #actionNames: Record<WorkflowActionType, string> = {
     'create-record': 'Create Record',
@@ -30,6 +33,7 @@ export class WorkflowVisualizerPage {
     'delete-record': 'Delete Record',
     code: 'Code',
     'send-email': 'Send Email',
+    form: 'Form',
   };
 
   #createdActionNames: Record<WorkflowActionType, string> = {
@@ -38,6 +42,7 @@ export class WorkflowVisualizerPage {
     'delete-record': 'Delete Record',
     code: 'Code - Serverless Function',
     'send-email': 'Send Email',
+    form: 'Form',
   };
 
   #triggerNames: Record<WorkflowTriggerType, string> = {
@@ -68,6 +73,9 @@ export class WorkflowVisualizerPage {
     });
     this.addTriggerButton = page.getByText('Add a Trigger');
     this.commandMenu = page.getByTestId('command-menu');
+    this.stepHeaderInCommandMenu = this.commandMenu.getByTestId(
+      'workflow-step-header',
+    );
     this.workflowNameLabel = page
       .getByTestId('top-bar-title')
       .getByText(this.workflowName);
@@ -80,6 +88,10 @@ export class WorkflowVisualizerPage {
     this.discardDraftButton = page.getByRole('button', {
       name: 'Discard Draft',
     });
+    this.seeRunsButton = page.getByRole('link', { name: 'See runs' });
+    this.goBackInCommandMenu = this.commandMenu
+      .getByRole('button')
+      .and(this.commandMenu.getByTestId('command-menu-go-back-button'));
   }
 
   async createOneWorkflow() {
@@ -114,7 +126,7 @@ export class WorkflowVisualizerPage {
       .getByTestId(`row-id-${this.workflowId}`)
       .getByRole('link', { name: this.workflowName });
 
-    await workflowLink.click();
+    await workflowLink.click({ force: true });
 
     await this.waitForWorkflowVisualizerLoad();
   }
