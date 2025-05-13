@@ -1,6 +1,30 @@
 name: twenty
 
 services:
+  traefik:
+    image: traefik:v3.0
+    container_name: traefik
+    command:
+      - "--api.insecure=true" # Access Traefik dashboard at http://<your_server_ip>:8080. Secure this for production.
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      - "--certificatesresolvers.myresolver.acme.httpchallenge=true"
+      - "--certificatesresolvers.myresolver.acme.httpchallenge.entrypoint=web"
+      - "--certificatesresolvers.myresolver.acme.email=your-email@example.com" # IMPORTANT: Change to your actual email address
+      - "--certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json"
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8080:8080" # Traefik Dashboard
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+      - "traefik-public-certificates:/letsencrypt"
+    networks:
+      - web
+    restart: unless-stopped
+
   change-vol-ownership:
     image: ubuntu
     user: root
@@ -11,18 +35,20 @@ services:
       bash -c "
       chown -R 1000:1000 /tmp/server-local-data
       && chown -R 1000:1000 /tmp/docker-data"
+    networks: # Ensure it's on the default network if other services depend on it by name
+      - default
 
   server:
     image: twentycrm/twenty:${TAG:-latest}
     volumes:
-      - server-local-data:/app/packages/twenty-server/${STORAGE_LOCAL_PATH}
+      - server-local-data:/app/packages/twenty-server/${STORAGE_LOCAL_PATH:-.local-storage}
       - docker-data:/app/docker-data
-    ports:
-      - "36000:36000"
+    # ports: # Traefik handles external port mapping
+    #   - "36000:36000"
     environment:
-      NODE_PORT: 36000
+      NODE_PORT: 36000 # Internal port the app listens on
       PG_DATABASE_URL: postgres://${PG_DATABASE_USER:-postgres}:${PG_DATABASE_PASSWORD:-postgres}@${PG_DATABASE_HOST:-db}:${PG_DATABASE_PORT:-5432}/default
-      SERVER_URL: ${SERVER_URL}
+      SERVER_URL: ${SERVER_URL} # This will be https://crm.daoproptech.com from your .env
       REDIS_URL: ${REDIS_URL:-redis://redis:6379}
 
       STORAGE_TYPE: ${STORAGE_TYPE}
@@ -62,22 +88,37 @@ services:
       db:
         condition: service_healthy
     healthcheck:
-      test: curl --fail http://localhost:36000/healthz
+      test: curl --fail http://localhost:36000/healthz # Healthcheck against internal port
       interval: 5s
       timeout: 5s
       retries: 10
     restart: always
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.twenty-crm.rule=Host(`crm.daoproptech.com`)"
+      - "traefik.http.routers.twenty-crm.entrypoints=websecure"
+      - "traefik.http.routers.twenty-crm.tls.certresolver=myresolver"
+      - "traefik.http.services.twenty-crm.loadbalancer.server.port=36000" # Internal port of your app
+      # Redirect HTTP to HTTPS (optional but recommended)
+      - "traefik.http.routers.twenty-crm-http.rule=Host(`crm.daoproptech.com`)"
+      - "traefik.http.routers.twenty-crm-http.entrypoints=web"
+      - "traefik.http.routers.twenty-crm-http.middlewares=redirect-to-https@docker"
+      - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
+      - "traefik.http.middlewares.redirect-to-https.redirectscheme.permanent=true"
+    networks:
+      - default
+      - web
 
   worker:
     image: twentycrm/twenty:${TAG:-latest}
     volumes:
-      - server-local-data:/app/packages/twenty-server/${STORAGE_LOCAL_PATH}
+      - server-local-data:/app/packages/twenty-server/${STORAGE_LOCAL_PATH:-.local-storage}
     command: ["yarn", "worker:prod"]
     environment:
       PG_DATABASE_URL: postgres://${PG_DATABASE_USER:-postgres}:${PG_DATABASE_PASSWORD:-postgres}@${PG_DATABASE_HOST:-db}:${PG_DATABASE_PORT:-5432}/default
       SERVER_URL: ${SERVER_URL}
       REDIS_URL: ${REDIS_URL:-redis://redis:6379}
-      DISABLE_DB_MIGRATIONS: "true" # it already runs on the server
+      DISABLE_DB_MIGRATIONS: "true"
 
       STORAGE_TYPE: ${STORAGE_TYPE}
       STORAGE_S3_REGION: ${STORAGE_S3_REGION}
@@ -116,11 +157,13 @@ services:
       server:
         condition: service_healthy
     restart: always
+    networks:
+      - default
 
   db:
     image: pgvector/pgvector:pg16
-    ports:
-      - "5433:5432"
+    ports: # Not needed externally, unless you want direct DB access for debugging
+       - "5433:5432"
     volumes:
       - db-data:/var/lib/postgresql/data
     environment:
@@ -133,13 +176,24 @@ services:
       timeout: 5s
       retries: 10
     restart: always
+    networks:
+      - default
 
   redis:
     image: redis
     restart: always
     command: ["--maxmemory-policy", "noeviction"]
+    networks:
+      - default
 
 volumes:
   docker-data:
   db-data:
   server-local-data:
+  traefik-public-certificates:
+
+networks:
+  default: # Your application's internal network
+    driver: bridge
+  web:     # Network for Traefik and services it exposes
+    driver: bridge
